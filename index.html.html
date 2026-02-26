@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日系極簡股票損益帳</title>
+    <style>
+        /* 日系天空藍配色與基礎設定 */
+        :root {
+            --bg-gradient-start: #a0d8ef; 
+            --bg-gradient-end: #f0f8ff;   
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --primary-color: #5D9CEC;
+            --primary-hover: #4A89DC;
+            --text-color: #434a54;
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-color);
+            padding: 30px 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        h2 { text-align: center; color: #3b6e8f; letter-spacing: 2px; margin-bottom: 25px; font-weight: 500; }
+        .container { max-width: 1100px; margin: auto; }
+
+        /* 分頁按鈕設計 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { 
+            flex: 1; min-width: 120px; padding: 15px; font-size: 1.1em; 
+            background-color: rgba(255, 255, 255, 0.5); color: #666; 
+            border: none; border-radius: var(--border-radius); 
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .tab-btn:hover { background-color: rgba(255, 255, 255, 0.8); }
+        .tab-btn.active { 
+            background-color: var(--card-bg); font-weight: bold; 
+            color: var(--primary-color); box-shadow: 0 4px 15px rgba(160, 216, 239, 0.5); 
+        }
+
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 卡片與表單 */
+        .card {
+            background: var(--card-bg); padding: 25px; border-radius: var(--border-radius);
+            box-shadow: 0 10px 25px rgba(160, 216, 239, 0.4); margin-bottom: 25px; backdrop-filter: blur(5px);
+        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f4f8; padding-bottom: 10px; }
+        h3 { margin: 0; color: #555; font-size: 1.1em; }
+
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-row > div { flex: 1; min-width: 150px; }
+        label { display: block; font-size: 0.9em; color: #666; margin-bottom: 5px; }
+        
+        input, select { width: 100%; padding: 10px; border: 1px solid #e6e9ed; border-radius: 6px; box-sizing: border-box; transition: border 0.3s; color: #333; }
+        input:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(93, 156, 236, 0.1); }
+
+        /* 按鈕 */
+        button { padding: 10px 15px; border: none; cursor: pointer; border-radius: 6px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background-color: var(--primary-color); color: white; width: 100%; font-size: 1em; }
+        .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-secondary { background-color: #aab2bd; color: white; }
+        .btn-secondary:hover { background-color: #9aa1ac; }
+        .btn-success { background-color: #8cc152; color: white; width: 100%; }
+        .btn-success:hover { background-color: #7bb142; }
+        .btn-warning { background-color: #ffce54; color: #6a5000; }
+        
+        .btn-small { padding: 5px 10px; font-size: 0.85em; margin-right: 3px; margin-bottom: 3px; }
+        .btn-edit { background-color: #ffce54; color: #6a5000; }
+        .btn-buy { background-color: #ec87c0; color: white; } 
+        .btn-sell { background-color: #37bc9b; color: white; } 
+        .btn-delete { background-color: #e9573f; color: white; }
+
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-tool { background-color: #fff; border: 1px solid #ccd1d9; color: #666; font-size: 0.9em; }
+        .btn-tool:hover { background-color: #f5f7fa; border-color: #aab2bd; }
+
+        /* 表格樣式 */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; white-space: nowrap; }
+        th { background-color: #f5f7fa; color: #656d78; padding: 12px; font-weight: 600; text-align: left; border-bottom: 2px solid #e6e9ed; }
+        td { padding: 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+        tr:hover td { background-color: #fdfdfd; }
+        .stats-table th, .stats-table td { text-align: center; }
+
+        /* 顏色與徽章 */
+        .profit-positive { color: #8cc152; font-weight: bold; } 
+        .profit-negative { color: #e9573f; font-weight: bold; } 
+        .type-buy { color: #e9573f; font-weight: bold; font-size: 0.9em; }
+        .type-sell { color: #8cc152; font-weight: bold; font-size: 0.9em; }
+        
+        /* 統計區塊 */
+        .filter-section { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; margin-bottom: 15px;}
+        .summary-box { 
+            background-color: #fff; padding: 10px 15px; border-radius: 8px; border: 1px solid #e6e9ed; 
+            color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.02); font-size: 0.95em; 
+        }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .dash-card { background: #fff; padding: 15px; border-radius: 8px; border-left: 5px solid var(--primary-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .dash-card h4 { margin: 0 0 10px 0; color: #888; font-size: 0.9em; font-weight: normal; }
+        .dash-card .value { font-size: 1.5em; font-weight: bold; color: #333; }
+
+        .loading-spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid rgba(0,0,0,0.1); border-left-color: #5D9CEC; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 5px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .tabs { flex-direction: column; }
+            .form-row > div { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>🌥️ 投資損益紀錄帳</h2>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-trans', this)">📝 交易明細</button>
+            <button class="tab-btn" onclick="switchTab('tab-inventory', this)">💼 庫存總覽</button>
+            <button class="tab-btn" onclick="switchTab('tab-stats', this)">📈 年度統計</button>
+        </div>
+
+        <div class="card" style="padding: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span style="font-size: 0.9em; color: #888;">資料管理</span>
+                <div class="toolbar">
+                    <button class="btn-tool" onclick="exportCSV()">📤 匯出 CSV</button>
+                    <label class="btn-tool" style="cursor: pointer; display: inline-block; margin: 0; padding: 10px 15px;">
+                        📥 匯入紀錄
+                        <input type="file" id="import-file" accept=".csv" style="display: none;" onchange="importCSV(this)">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-trans" class="tab-content active">
+            <div class="card">
+                <div class="card-header"><h3 id="form-title">✏️ 新增交易紀錄</h3></div>
+                <form id="stock-form">
+                    <input type="hidden" id="edit-id" value="">
+                    <div class="form-row">
+                        <div><label>交易日期</label><input type="date" id="trade-date" required></div>
+                        <div><label>買賣類別</label><select id="trade-type" required><option value="buy">買入</option><option value="sell">賣出</option></select></div>
+                    </div>
+                    <div class="form-row">
+                        <div><label>股票名稱</label><input type="text" id="stock-name" placeholder="例: 台積電" required></div>
+                        <div><label>股票代號</label><input type="text" id="stock-code" placeholder="例: 2330" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div><label>成交股數</label><input type="number" id="shares" placeholder="股" required></div>
+                        <div><label>成交單價</label><input type="number" id="price" step="0.01" placeholder="元" required></div>
+                        <div><label>手續費</label><input type="number" id="fee" placeholder="元 (含稅)" required></div>
+                    </div>
+                    <div class="form-row" style="margin-bottom: 0;">
+                        <button type="submit" id="submit-btn" class="btn-primary">儲存紀錄</button>
+                        <button type="button" id="cancel-btn" class="btn-secondary" style="display: none;" onclick="cancelEdit()">取消修改</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3>📊 交易明細清單</h3></div>
+                <div class="filter-section">
+                    <div style="display: flex; gap: 10px; flex-grow: 1;">
+                        <input type="text" id="filter-input" placeholder="🔍 搜尋名稱或代號...">
+                        <select id="filter-year" style="width: auto; min-width: 120px;"><option value="all">所有年份</option></select>
+                    </div>
+                    <div class="summary-box">已實現損益：<span id="total-summary" style="font-weight: bold;">0</span></div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th><th>名稱 (代號)</th><th>動作</th><th>股數</th><th>單價</th><th>結算庫存/成本</th><th>已實現損益</th><th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="record-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-inventory" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>💼 目前持股與未實現損益</h3>
+                    <button class="btn-warning" onclick="refreshPrices()" id="btn-refresh">
+                        🔄 取得最新股價
+                    </button>
+                </div>
+                
+                <div style="font-size: 0.85em; color: #888; margin-bottom: 15px;">
+                    💡 <strong>多重資料庫連線中：</strong> 優先抓取 Yahoo Finance，若無回應則自動切換至「台灣證券交易所(上市)」與「櫃買中心(上櫃)」官方開放資料。
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dash-card">
+                        <h4>💰 總投資成本 (本金)</h4>
+                        <div class="value" id="dash-total-cost">0</div>
+                    </div>
+                    <div class="dash-card" style="border-color: #8cc152;">
+                        <h4>📈 預估總市值</h4>
+                        <div class="value" id="dash-total-market">0</div>
+                    </div>
+                    <div class="dash-card" style="border-color: #e9573f;">
+                        <h4>⚖️ 總未實現損益</h4>
+                        <div class="value" id="dash-total-unrealized">0</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>名稱 (代號)</th>
+                                <th>庫存股數</th>
+                                <th>平均成本</th>
+                                <th>總成本</th>
+                                <th style="background-color: #fff9e6;">最新現價</th>
+                                <th>未實現損益</th>
+                                <th>報酬率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-list">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <div class="card-header"><h3>📈 各年度結算損益</h3></div>
+                
+                <div style="font-size: 0.85em; color: #888; margin-bottom: 15px; line-height: 1.6;">
+                    💡 <strong>投入金額：</strong>該年度所有「買入」操作所支出的總金額 (含買入手續費)。<br>
+                    💡 <strong>回收金額：</strong>該年度所有「賣出」操作拿回的現金總額 (扣除賣出手續費)。<br>
+                    💡 <strong>已實現損益：</strong>賣出股票的真實賺賠 (賣出回收總額 - 賣出股票對應的買進成本)。
+                </div>
+
+                <div class="table-container">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>年度</th>
+                                <th>投入金額 (買入總額)</th>
+                                <th>回收金額 (賣出總額)</th>
+                                <th>已實現損益 (獲利/虧損)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="yearly-stats-list"></tbody>
+                        <tfoot id="yearly-stats-total" style="font-weight: bold; background-color: #f5f7fa;"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('stockRecords')) || [];
+        let currentPrices = {}; 
+        
+        // --- 官方 OpenAPI 快取 ---
+        let twseCache = null; 
+        let tpexCache = null; 
+        
+        document.getElementById('trade-date').valueAsDate = new Date();
+        document.getElementById('filter-input').addEventListener('input', updateUI);
+        document.getElementById('filter-year').addEventListener('change', updateUI);
+
+        // --- 分頁切換 ---
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+            updateUI(); 
+        }
+
+        // --- 底層引擎：計算流水帳與庫存 ---
+        function calculateAllData() {
+            let sortedRecords = [...records].sort((a, b) => new Date(a.date) - new Date(b.date) || a.id - b.id);
+            let inventory = {}; 
+
+            sortedRecords.forEach(record => {
+                if (!inventory[record.code]) inventory[record.code] = { name: record.name, shares: 0, totalCost: 0 };
+                let inv = inventory[record.code];
+
+                if (record.type === 'buy') {
+                    inv.shares += record.shares;
+                    inv.totalCost += (record.price * record.shares) + record.fee;
+                    record.calculatedProfit = null; 
+                } else if (record.type === 'sell') {
+                    let avgCostPerShare = inv.shares > 0 ? (inv.totalCost / inv.shares) : 0;
+                    let costOfSoldShares = avgCostPerShare * record.shares;
+                    let profit = (record.price * record.shares) - costOfSoldShares - record.fee;
+                    
+                    record.calculatedProfit = Math.round(profit * 100) / 100;
+                    inv.shares -= record.shares;
+                    inv.totalCost -= costOfSoldShares;
+                    if (inv.shares <= 0) { inv.shares = 0; inv.totalCost = 0; }
+                }
+                record.runningShares = inv.shares;
+                record.runningCost = Math.round(inv.totalCost * 100) / 100;
+            });
+            
+            let inventoryList = [];
+            Object.keys(inventory).forEach(code => {
+                if (inventory[code].shares > 0) {
+                    inventoryList.push({
+                        code: code, name: inventory[code].name, shares: inventory[code].shares,
+                        totalCost: inventory[code].totalCost, avgCost: inventory[code].totalCost / inventory[code].shares
+                    });
+                }
+            });
+
+            return { processedRecords: sortedRecords, inventoryList };
+        }
+
+        // --- 多重資料庫連線策略 ---
+        async function fetchYahoo(qCode) {
+            try {
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${qCode}`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl, { cache: 'no-store' });
+                if (!response.ok) return null;
+                const data = await response.json();
+                if (data.chart && data.chart.result && data.chart.result.length > 0) {
+                    return data.chart.result[0].meta.regularMarketPrice;
+                }
+            } catch (e) { return null; }
+            return null;
+        }
+
+        async function fetchFromTWSE(code) {
+            if (!twseCache) {
+                try {
+                    const res = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
+                    const data = await res.json();
+                    twseCache = {};
+                    data.forEach(item => { twseCache[item.Code] = parseFloat(item.ClosingPrice); });
+                } catch (e) { twseCache = {}; }
+            }
+            return twseCache[code] || null;
+        }
+
+        async function fetchFromTPEx(code) {
+            if (!tpexCache) {
+                try {
+                    const res = await fetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes');
+                    const data = await res.json();
+                    tpexCache = {};
+                    data.forEach(item => { tpexCache[item.SecuritiesCompanyCode] = parseFloat(item.Close); });
+                } catch (e) { tpexCache = {}; }
+            }
+            return tpexCache[code] || null;
+        }
+
+        async function fetchStockPrice(code) {
+            let price = null;
+            const isTWStock = /^\d+$/.test(code) || /^[A-Z0-9]+$/.test(code);
+
+            if (isTWStock) {
+                price = await fetchYahoo(code + '.TW'); 
+                if (price) return price;
+                price = await fetchYahoo(code + '.TWO'); 
+                if (price) return price;
+            } else {
+                price = await fetchYahoo(code); 
+                if (price) return price;
+            }
+
+            if (isTWStock) {
+                price = await fetchFromTWSE(code); 
+                if (price) return price;
+                price = await fetchFromTPEx(code); 
+                if (price) return price;
+            }
+            return null; 
+        }
+
+        // --- 點擊按鈕：刷新所有庫存股價 ---
+        async function refreshPrices() {
+            const btn = document.getElementById('btn-refresh');
+            btn.innerHTML = '<span class="loading-spinner"></span>資料庫連線中...';
+            btn.disabled = true;
+
+            twseCache = null; 
+            tpexCache = null;
+
+            const data = calculateAllData();
+            
+            for (let item of data.inventoryList) {
+                const price = await fetchStockPrice(item.code);
+                if (price !== null) {
+                    currentPrices[item.code] = price;
+                }
+            }
+
+            btn.innerHTML = '🔄 取得最新股價';
+            btn.disabled = false;
+            updateUI(); 
+        }
+
+        // --- UI 更新統籌 ---
+        function updateUI() {
+            updateYearDropdown();
+            const data = calculateAllData();
+            renderTransactionTable(data.processedRecords);
+            renderStatisticsTable(data.processedRecords);
+            renderInventoryTable(data.inventoryList);
+        }
+
+        // --- 繪製：庫存總覽表 ---
+        function renderInventoryTable(inventoryList) {
+            const tbody = document.getElementById('inventory-list');
+            tbody.innerHTML = '';
+            
+            let globalTotalCost = 0; let globalTotalMarket = 0; let globalTotalUnrealized = 0;
+
+            if (inventoryList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999;">目前無庫存紀錄</td></tr>';
+            }
+
+            inventoryList.forEach(item => {
+                globalTotalCost += item.totalCost;
+                const tr = document.createElement('tr');
+                
+                let currentPrice = currentPrices[item.code];
+                let priceHtml = '<span style="color:#999;">-</span>';
+                let unrealizedHtml = '<span style="color:#999;">-</span>';
+                let roiHtml = '<span style="color:#999;">-</span>';
+
+                if (currentPrice !== undefined) {
+                    const marketValue = currentPrice * item.shares;
+                    const unrealizedProfit = marketValue - item.totalCost;
+                    const roi = (unrealizedProfit / item.totalCost) * 100;
+                    
+                    globalTotalMarket += marketValue;
+                    globalTotalUnrealized += unrealizedProfit;
+
+                    const profitClass = unrealizedProfit >= 0 ? 'profit-positive' : 'profit-negative';
+                    
+                    priceHtml = `<strong>${currentPrice.toLocaleString('zh-TW', {minimumFractionDigits: 2})}</strong>`;
+                    unrealizedHtml = `<span class="${profitClass}">${Math.round(unrealizedProfit).toLocaleString('zh-TW')}</span>`;
+                    roiHtml = `<span class="${profitClass}">${roi.toFixed(2)} %</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td><strong>${item.name}</strong> <span style="font-size:0.85em;color:#888;">(${item.code})</span></td>
+                    <td>${item.shares.toLocaleString('zh-TW')}</td>
+                    <td>${item.avgCost.toFixed(2)}</td>
+                    <td>${Math.round(item.totalCost).toLocaleString('zh-TW')}</td>
+                    <td style="background-color: #fffaf0;">${priceHtml}</td>
+                    <td>${unrealizedHtml}</td>
+                    <td>${roiHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('dash-total-cost').textContent = Math.round(globalTotalCost).toLocaleString('zh-TW');
+            
+            if (Object.keys(currentPrices).length > 0) {
+                const globalProfitClass = globalTotalUnrealized >= 0 ? 'profit-positive' : 'profit-negative';
+                document.getElementById('dash-total-market').textContent = Math.round(globalTotalMarket).toLocaleString('zh-TW');
+                const uSpan = document.getElementById('dash-total-unrealized');
+                uSpan.textContent = Math.round(globalTotalUnrealized).toLocaleString('zh-TW');
+                uSpan.className = 'value ' + globalProfitClass;
+            } else {
+                document.getElementById('dash-total-market').textContent = '-';
+                document.getElementById('dash-total-unrealized').textContent = '-';
+                document.getElementById('dash-total-unrealized').className = 'value';
+            }
+        }
+
+        // --- 繪製：年度統計表 (新增賣出總額) ---
+        function renderStatisticsTable(processedRecords) {
+            const tbody = document.getElementById('yearly-stats-list');
+            const tfoot = document.getElementById('yearly-stats-total');
+            tbody.innerHTML = ''; 
+            
+            let yearlyData = {}; 
+            let grandInvest = 0, grandSales = 0, grandProfit = 0;
+            
+            processedRecords.forEach(r => {
+                const year = r.date.split('-')[0]; 
+                if (!year) return;
+                
+                if (!yearlyData[year]) yearlyData[year] = { invest: 0, sales: 0, profit: 0 };
+                
+                if (r.type === 'buy') { 
+                    const cost = (r.price * r.shares) + r.fee; 
+                    yearlyData[year].invest += cost; 
+                    grandInvest += cost; 
+                } 
+                else if (r.type === 'sell') { 
+                    // 計算賣出的實際回收現金 (賣出價格*股數 - 賣出手續費)
+                    const salesRevenue = (r.price * r.shares) - r.fee;
+                    yearlyData[year].sales += salesRevenue;
+                    grandSales += salesRevenue;
+
+                    if (r.calculatedProfit !== null) { 
+                        yearlyData[year].profit += r.calculatedProfit; 
+                        grandProfit += r.calculatedProfit; 
+                    }
+                }
+            });
+            
+            const sortedYears = Object.keys(yearlyData).sort().reverse();
+            if (sortedYears.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">目前尚無紀錄</td></tr>'; 
+                tfoot.innerHTML = ''; 
+                return; 
+            }
+            
+            sortedYears.forEach(year => {
+                const data = yearlyData[year];
+                tbody.innerHTML += `<tr>
+                    <td><strong>${year} 年</strong></td>
+                    <td>${Math.round(data.invest).toLocaleString('zh-TW')}</td>
+                    <td style="color: #4A89DC;">${Math.round(data.sales).toLocaleString('zh-TW')}</td>
+                    <td class="${data.profit >= 0 ? 'profit-positive' : 'profit-negative'}">${Math.round(data.profit).toLocaleString('zh-TW')}</td>
+                </tr>`;
+            });
+            
+            tfoot.innerHTML = `<tr>
+                <td>總計</td>
+                <td>${Math.round(grandInvest).toLocaleString('zh-TW')}</td>
+                <td style="color: #4A89DC;">${Math.round(grandSales).toLocaleString('zh-TW')}</td>
+                <td class="${grandProfit >= 0 ? 'profit-positive' : 'profit-negative'}">${Math.round(grandProfit).toLocaleString('zh-TW')}</td>
+            </tr>`;
+        }
+
+        // --- 其他繪製功能維持不變 ---
+        function updateYearDropdown() {
+            const yearSelect = document.getElementById('filter-year');
+            const currentSelected = yearSelect.value;
+            const years = new Set(records.map(r => r.date.split('-')[0]));
+            const sortedYears = Array.from(years).sort().reverse();
+            yearSelect.innerHTML = '<option value="all">所有年份</option>';
+            sortedYears.forEach(y => { if(y) yearSelect.add(new Option(y + ' 年', y)); });
+            if (sortedYears.includes(currentSelected)) yearSelect.value = currentSelected;
+        }
+
+        function renderTransactionTable(processedRecords) {
+            const tbody = document.getElementById('record-list');
+            const summarySpan = document.getElementById('total-summary');
+            const filterKeyword = document.getElementById('filter-input').value.toLowerCase();
+            const filterYear = document.getElementById('filter-year').value;
+            tbody.innerHTML = ''; let totalRealizedProfit = 0; 
+            const filteredRecords = processedRecords.reverse().filter(record => {
+                return (record.name.toLowerCase().includes(filterKeyword) || record.code.toLowerCase().includes(filterKeyword)) &&
+                       (filterYear === 'all' || record.date.startsWith(filterYear));
+            });
+            filteredRecords.forEach(record => {
+                const tr = document.createElement('tr');
+                const typeClass = record.type === 'buy' ? 'type-buy' : 'type-sell';
+                let profitHtml = '<span style="color: #ccc;">-</span>'; 
+                if (record.calculatedProfit !== null) {
+                    totalRealizedProfit += record.calculatedProfit; 
+                    profitHtml = `<span class="${record.calculatedProfit >= 0 ? 'profit-positive' : 'profit-negative'}">${record.calculatedProfit.toLocaleString('zh-TW')}</span>`;
+                }
+                tr.innerHTML = `
+                    <td>${record.date}</td>
+                    <td><strong>${record.name}</strong><br><span style="font-size:0.85em; color:#999;">${record.code}</span></td>
+                    <td class="${typeClass}">${record.type === 'buy' ? '買入' : '賣出'}</td>
+                    <td>${record.shares}</td><td>${record.price}</td>
+                    <td><div style="font-size:0.85em; color:#888;">存: ${record.runningShares}<br>本: ${record.runningCost.toLocaleString('zh-TW')}</div></td>
+                    <td>${profitHtml}</td>
+                    <td>
+                        <div style="display:flex; flex-wrap:wrap;">
+                            <button class="btn-small btn-buy" onclick="quickTrade('buy', '${record.name}', '${record.code}')">續買</button>
+                            <button class="btn-small btn-sell" onclick="quickTrade('sell', '${record.name}', '${record.code}')">賣出</button>
+                            <button class="btn-small btn-edit" onclick="editRecord(${record.id})">修改</button>
+                            <button class="btn-small btn-delete" onclick="deleteRecord(${record.id})">刪除</button>
+                        </div>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+            summarySpan.textContent = Math.round(totalRealizedProfit).toLocaleString('zh-TW');
+            summarySpan.className = totalRealizedProfit >= 0 ? 'profit-positive' : 'profit-negative';
+        }
+
+        // --- 表單與操作邏輯 ---
+        document.getElementById('stock-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const editId = document.getElementById('edit-id').value;
+            const recordData = {
+                date: document.getElementById('trade-date').value, type: document.getElementById('trade-type').value,
+                name: document.getElementById('stock-name').value, code: document.getElementById('stock-code').value,
+                shares: parseFloat(document.getElementById('shares').value), price: parseFloat(document.getElementById('price').value), fee: parseFloat(document.getElementById('fee').value)
+            };
+            if (editId) { const index = records.findIndex(r => r.id === parseInt(editId, 10)); if (index !== -1) records[index] = { ...records[index], ...recordData }; cancelEdit(); } 
+            else { recordData.id = Date.now(); records.push(recordData); document.getElementById('shares').value = ''; document.getElementById('price').value = ''; document.getElementById('fee').value = ''; }
+            saveData(); updateUI();
+        });
+
+        function quickTrade(type, name, code) {
+            window.scrollTo({ top: 0, behavior: 'smooth' }); document.getElementById('trade-date').valueAsDate = new Date();
+            document.getElementById('trade-type').value = type; document.getElementById('stock-name').value = name; document.getElementById('stock-code').value = code;
+            document.getElementById('shares').value = ''; document.getElementById('price').value = ''; document.getElementById('fee').value = '';
+            if (document.getElementById('edit-id').value) { cancelEdit(); setTimeout(() => { document.getElementById('trade-type').value = type; document.getElementById('stock-name').value = name; document.getElementById('stock-code').value = code; document.getElementById('trade-date').valueAsDate = new Date(); }, 50); }
+        }
+
+        function editRecord(id) {
+            const r = records.find(r => r.id === id); if (!r) return;
+            document.getElementById('edit-id').value = r.id; document.getElementById('trade-date').value = r.date; document.getElementById('trade-type').value = r.type;
+            document.getElementById('stock-name').value = r.name; document.getElementById('stock-code').value = r.code; document.getElementById('shares').value = r.shares;
+            document.getElementById('price').value = r.price; document.getElementById('fee').value = r.fee;
+            document.getElementById('form-title').textContent = '✏️ 修改交易紀錄';
+            const sBtn = document.getElementById('submit-btn'); sBtn.textContent = '更新紀錄'; sBtn.className = 'btn-success';
+            document.getElementById('cancel-btn').style.display = 'inline-block'; window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.getElementById('edit-id').value = ''; document.getElementById('stock-form').reset(); document.getElementById('trade-date').valueAsDate = new Date();
+            document.getElementById('form-title').textContent = '✏️ 新增交易紀錄'; const sBtn = document.getElementById('submit-btn'); sBtn.textContent = '儲存紀錄'; sBtn.className = 'btn-primary';
+            document.getElementById('cancel-btn').style.display = 'none';
+        }
+
+        function deleteRecord(id) { if(confirm('確定要刪除這筆紀錄嗎？')) { records = records.filter(r => r.id !== id); saveData(); updateUI(); } }
+        function saveData() { localStorage.setItem('stockRecords', JSON.stringify(records)); }
+
+        // --- 匯出/匯入 CSV ---
+        function exportCSV() {
+            if (records.length === 0) { alert("無資料！"); return; }
+            let csv = "\uFEFFID,日期,動作(buy=買/sell=賣),股票名稱,代號,股數,單價,手續費\n";
+            records.forEach(r => csv += `${r.id},${r.date},${r.type},${r.name},${r.code},${r.shares},${r.price},${r.fee}\n`);
+            const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+            link.download = `股票紀錄_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+        function importCSV(input) {
+            const file = input.files[0]; if (!file) return; const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n'); let newRecords = []; let successCount = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].trim().split(',');
+                    if (cols.length >= 8) { try { newRecords.push({ id: parseInt(cols[0])||Date.now()+i, date: cols[1], type: cols[2], name: cols[3], code: cols[4], shares: parseFloat(cols[5]), price: parseFloat(cols[6]), fee: parseFloat(cols[7]) }); successCount++; } catch(e){} }
+                }
+                if (successCount > 0) {
+                    if (confirm(`成功解析 ${successCount} 筆。\n(確定=覆蓋, 取消=合併)`)) { records = newRecords; } else { const ids = new Set(records.map(r=>r.id)); newRecords.forEach(r=>{ if(!ids.has(r.id)) records.push(r); else{ r.id=Date.now()+Math.random(); records.push(r); } }); }
+                    saveData(); updateUI(); alert("匯入完成！");
+                } else alert("格式錯誤。");
+                input.value = '';
+            }; reader.readAsText(file);
+        }
+
+        updateUI(); 
+    </script>
+</body>
+</html>
